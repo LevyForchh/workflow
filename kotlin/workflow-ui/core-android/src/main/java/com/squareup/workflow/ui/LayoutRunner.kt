@@ -125,6 +125,26 @@ interface LayoutRunner<RenderingT : Any> {
       noinline constructor: (BindingT) -> LayoutRunner<RenderingT>
     ): ViewBinding<RenderingT> = ViewBindingBinding(RenderingT::class, bindingInflater, constructor)
 
+    inline fun <reified BindingT : androidx.viewbinding.ViewBinding, reified RenderingT : Any> bind(
+      noinline constructor: (BindingT) -> LayoutRunner<RenderingT>
+    ): ViewBinding<RenderingT> {
+      val bindingInflater = getBindingInflaterForType(BindingT::class)
+      return ViewBindingBinding(RenderingT::class, bindingInflater, constructor)
+    }
+
+    @PublishedApi
+    internal fun <BindingT : androidx.viewbinding.ViewBinding> getBindingInflaterForType(
+      type: KClass<BindingT>
+    ): ViewBindingInflater<BindingT> {
+      val bindingInflaterMethod = type.java.getMethod(
+          "inflate", LayoutInflater::class.java, ViewGroup::class.java, Boolean::class.java
+      )
+      return { inflater, container, attach ->
+        @Suppress("UNCHECKED_CAST")
+        bindingInflaterMethod.invoke(null, inflater, container, attach) as BindingT
+      }
+    }
+
     /**
      * Creates a [ViewBinding] that inflates [layoutId] to "show" renderings of type [RenderingT],
      * with a no-op [LayoutRunner]. Handy for showing static views.

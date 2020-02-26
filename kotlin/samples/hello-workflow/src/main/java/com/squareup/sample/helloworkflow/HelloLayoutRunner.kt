@@ -15,7 +15,6 @@
  */
 package com.squareup.sample.helloworkflow
 
-import android.view.LayoutInflater
 import com.squareup.sample.helloworkflow.databinding.HelloGoodbyeLayoutBinding
 import com.squareup.workflow.ui.ContainerHints
 import com.squareup.workflow.ui.LayoutRunner
@@ -34,7 +33,5 @@ class HelloLayoutRunner(
     binding.helloMessage.setOnClickListener { rendering.onClick() }
   }
 
-  companion object : ViewBinding<HelloWorkflow.Rendering> by bind(
-      HelloGoodbyeLayoutBinding::inflate, ::HelloLayoutRunner
-  )
+  companion object : ViewBinding<HelloWorkflow.Rendering> by bind(::HelloLayoutRunner)
 }
