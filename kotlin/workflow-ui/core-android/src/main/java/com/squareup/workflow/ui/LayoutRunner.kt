@@ -22,6 +22,8 @@ import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import kotlin.reflect.KClass
 
+typealias ViewBindingInflater<BindingT> = (LayoutInflater, ViewGroup, Boolean) -> BindingT
+
 /**
  * A delegate that implements a [showRendering] method to be called when a workflow rendering
  * of type [RenderingT] is ready to be displayed in a view inflated from a layout resource
@@ -82,6 +84,32 @@ interface LayoutRunner<RenderingT : Any> {
     }
   }
 
+  class ViewBindingBinding<BindingT : androidx.viewbinding.ViewBinding, RenderingT : Any>(
+    override val type: KClass<RenderingT>,
+    private val bindingInflater: ViewBindingInflater<BindingT>,
+    private val runnerConstructor: (BindingT) -> LayoutRunner<RenderingT>
+  ) : ViewBinding<RenderingT> {
+    override fun buildView(
+      initialRendering: RenderingT,
+      initialContainerHints: ContainerHints,
+      contextForNewView: Context,
+      container: ViewGroup?
+    ): View {
+      return LayoutInflater.from(container?.context ?: contextForNewView)
+          .cloneInContext(contextForNewView)
+          // This !! is problematic. Can we use the overload that only takes an inflater?
+          .let { bindingInflater(it, container!!, false) }
+          .also { binding ->
+            binding.root.bindShowRendering(
+                initialRendering,
+                initialContainerHints,
+                runnerConstructor.invoke(binding)::showRendering
+            )
+          }
+          .root
+    }
+  }
+
   companion object {
     /**
      * Creates a [ViewBinding] that inflates [layoutId] to show renderings of type [RenderingT],
@@ -91,6 +119,11 @@ interface LayoutRunner<RenderingT : Any> {
       @LayoutRes layoutId: Int,
       noinline constructor: (View) -> LayoutRunner<RenderingT>
     ): ViewBinding<RenderingT> = Binding(RenderingT::class, layoutId, constructor)
+
+    inline fun <BindingT : androidx.viewbinding.ViewBinding, reified RenderingT : Any> bind(
+      noinline bindingInflater: ViewBindingInflater<BindingT>,
+      noinline constructor: (BindingT) -> LayoutRunner<RenderingT>
+    ): ViewBinding<RenderingT> = ViewBindingBinding(RenderingT::class, bindingInflater, constructor)
 
     /**
      * Creates a [ViewBinding] that inflates [layoutId] to "show" renderings of type [RenderingT],
